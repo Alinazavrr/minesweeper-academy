@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/supabase";
 
 /**
  * Service-role Supabase client. Bypasses RLS.
@@ -15,7 +16,7 @@ export function createServiceClient() {
       "Supabase service-role client requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY",
     );
   }
-  return createSupabaseClient(url, key, {
+  return createSupabaseClient<Database>(url, key, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
