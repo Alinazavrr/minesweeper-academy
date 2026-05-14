@@ -1,8 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
-/.pnp
+node_modules
+.pnp
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -11,17 +11,19 @@
 !.yarn/versions
 
 # testing
-/coverage
+coverage
 
 # next.js
-/.next/
-/out/
+.next/
+out/
 
 # production
-/build
+build
+dist
 
 # misc
 .DS_Store
+Thumbs.db
 *.pem
 
 # debug
@@ -30,8 +32,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files (real keys never committed; .env.example is the template)
+.env
+.env.*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +43,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# claude code artifacts (local-only; re-installable via /plugin)
+.playwright-mcp/
+.agents/
+.claude/settings.local.json
+.claude/skills/
+
+# playwright + screenshot artifacts
+*.png
+!public/**/*.png
