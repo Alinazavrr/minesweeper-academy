@@ -5,7 +5,7 @@ Last updated: 2026-05-15
 ## Repo
 
 - Branch: `main`
-- Last known HEAD: `6400111 feat(daily): Daily Challenge end-to-end` (verify with `git log -1`)
+- Last known HEAD: `47915c6 feat(coach): AI Coach chat — streaming gpt-4o-mini, persisted, rate-limited` (verify with `git log -1`)
 - Product source of truth: `ideas/PROJECT_PLAN.md`
 - Agent rules: read `AGENTS.md` and `CLAUDE.md` before coding
 
@@ -17,9 +17,10 @@ Last updated: 2026-05-15
 - Auth: email/password + Google OAuth + Supabase SSR session refresh + `/auth/callback` PKCE + `/account` page.
 - Game persistence: finished quick-play games inserted into `public.games` via `saveQuickPlayGame` server action. Save logic lives in the Zustand store so React 19 StrictMode dev double-mounts can't duplicate rows.
 - Recent games on `/account`: last 10 games per user.
-- **Daily Challenge at `/daily` (new today)**: deterministic seed per UTC date (`daily-YYYY-MM-DD`), Intermediate every day for MVP, lazy-creates `daily_challenges` row via the service-role client on first visit, public-read `daily_results` table acts as the leaderboard, owner-only INSERT enforces one attempt per day per user (PK + pre-check). RSC pulls today's challenge + leaderboard + your existing result; `<DailyView>` switches between active game / already-played panel; auto-submit runs in `useEffect` keyed on the engine status — safe under StrictMode because the component is unconditionally mounted (initial mount sees `status === "idle"`, transition to terminal is a re-render which fires the effect exactly once).
+- Daily Challenge at `/daily`: deterministic seed per UTC date (`daily-YYYY-MM-DD`), Intermediate every day for MVP, lazy-creates `daily_challenges` row via the service-role client on first visit, public-read `daily_results` table acts as the leaderboard, owner-only INSERT enforces one attempt per day per user (PK + pre-check). RSC pulls today's challenge + leaderboard + your existing result; `<DailyView>` switches between active game / already-played panel; auto-submit runs in `useEffect` keyed on engine status — safe under StrictMode because `ActiveGame` is unconditionally mounted (initial mount sees `status === "idle"`, transition to terminal is a re-render which fires the effect exactly once).
 - Cell + Board components refactored to be presentational (props in, callbacks out) with `React.memo` per-cell. Both Quick Play and Daily use the same Board.
-- Verification: `pnpm typecheck`, `pnpm lint`, `pnpm test:all` (24 app + 81 engine) all green. Daily flow browser-verified end-to-end.
+- **AI Coach at `/coach` (new today)**: streaming `gpt-4o-mini` chat via `/api/coach/chat`. SSE pipeline emits `init` / `delta` / `done` / `error` events; client streams tokens into the latest assistant bubble. Per-tier daily rate limit (free=5, pro_lite=20, pro=100) enforced server-side via `coach_usage_daily`. `coach_messages` and `coach_usage_daily` writes go through the service-role client (those tables have no INSERT RLS — users can't forge assistant messages or fake usage). System prompt is domain-trained: references 1-1, 1-2-1, 1-2-2-1 patterns and refuses to play moves. RSC server-renders the user's most-recent free-chat thread; client persists across refreshes.
+- Verification: `pnpm typecheck`, `pnpm lint`, `pnpm test:all` (24 app + 81 engine) all green. Daily + Coach flows browser-verified end-to-end. Coach happy path requires OpenAI credits on the project key — the rate-limit pathway is verified independently.
 
 ## External config confirmed
 
@@ -39,19 +40,20 @@ Last updated: 2026-05-15
 - `public.users` SELECT is `TO authenticated` with `qual = true`, so any signed-in user can SELECT another user's `email` column. Tighten to `display_name` only (column-level grant or a `users_public` view) before the user count grows.
 - Daily leaderboard hides display names for anonymous viewers (the users join needs auth). Acceptable for MVP — fix with a `daily_leaderboard_v` view that exposes only public columns and is readable by `anon`.
 - Daily Challenge MVP allows local-state restart before submission (just refresh the page before clicking). Real anti-cheat needs a server-side "started_at" record. Out of scope for now.
+- **OpenAI quota** on the project key is exhausted. Coach failure path proves the error pipeline works (errors surface as SSE `error` events and render in the UI alert), but you'll need to top up `OPENAI_API_KEY` credits to test the happy path. The conversation row + user message persist even on OpenAI failure; usage is only bumped on a successful completion, so failed attempts don't burn the daily counter.
 
 ## Current next slice
 
 Pick from:
 
-- **AI Coach (free chat)**: server route streaming `gpt-4o-mini`, persistence to `coach_conversations`/`coach_messages`, daily rate limit from `coach_usage_daily`. Schema is ready.
-- **Pro tier modal + fake-purchase RPC**: write to `subscriptions`, gate Pro features (Coach unlimited, advanced analytics, Post-Game Review).
-- **Replay serialization + Post-Game Review**: encode action log into `games.replay_blob`, build a scrubbable board UI annotated by the CSP solver.
+- **Pro tier modal + fake-purchase RPC**: write to `subscriptions` server-side, gate Pro features (Coach unlimited / 100/day, advanced analytics panels, Post-Game Review). The Coach already differentiates `free`/`pro_lite`/`pro` daily limits — flipping a user to `pro` immediately unlocks 100/day.
+- **Replay serialization + Post-Game Review**: encode action log into `games.replay_blob`, build a scrubbable board UI annotated by the CSP solver, optionally narrated by the coach.
 - **Mines currency accrual**: on game finish, server-side RPC writes to `user_currency` + `mines_transactions`. Daily completion bonus.
 - **Stats dashboard**: aggregate RPCs over `public.games` for the free + Pro analytics panels.
-- **Daily share card**: `@vercel/og` route to render an image of "I solved today's challenge in N seconds."
+- **Daily share card**: `@vercel/og` route to render "I solved today's challenge in Ns" image.
+- **Coach polish**: markdown rendering for assistant messages; conversation list (so the user can switch threads); per-game post-game review conversation kind.
 
-CTO recommendation: **AI Coach next** — it's the second headline feature and unlocks Pro tier value. Mines currency is small and can follow.
+CTO recommendation: **Pro tier + fake-purchase next** — it makes the existing Coach gating visible to the user and is a small, demoable feature. Replay + Post-Game Review is the next-richest "wow" feature after that.
 
 ## Notes for the next agent
 
