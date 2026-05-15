@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ProTierDialog } from "@/components/billing/ProTierDialog";
 import { Sparkline } from "@/components/stats/Sparkline";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { getUserStats } from "@/lib/db/stats";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
@@ -60,12 +61,15 @@ export default async function StatsPage() {
     <main className="flex flex-1 flex-col px-4 py-8">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <header className="flex flex-col gap-2 border-b border-zinc-200 pb-6 dark:border-zinc-800">
-          <Link
-            href="/account"
-            className="text-sm font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
-          >
-            ← Account
-          </Link>
+          <div className="flex items-center justify-between">
+            <Link
+              href="/account"
+              className="text-sm font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
+            >
+              ← Account
+            </Link>
+            <ThemeToggle />
+          </div>
           <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
             Stats
           </h1>

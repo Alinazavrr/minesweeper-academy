@@ -10,6 +10,7 @@ import {
   type SubscriptionGrantedVia,
   type SubscriptionTier,
 } from "@/lib/billing/tiers";
+import { track } from "@/lib/analytics/track";
 import { cn } from "@/lib/cn";
 
 type Props = {
@@ -63,7 +64,13 @@ export function ProTierDialog({
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setOpen(true);
+          track("pro_modal_view", {
+            current_tier: visibleTier,
+            trigger_label: resolvedTriggerLabel,
+          });
+        }}
         className={cn(
           "rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500",
           triggerClassName,

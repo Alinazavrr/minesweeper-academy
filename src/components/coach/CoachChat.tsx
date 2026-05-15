@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ProTierDialog } from "@/components/billing/ProTierDialog";
 import { Markdown } from "@/components/coach/Markdown";
+import { track } from "@/lib/analytics/track";
 import { cn } from "@/lib/cn";
 
 type Message = {
@@ -91,6 +92,11 @@ export function CoachChat({
       { role: "user", content: trimmed },
       { role: "assistant", content: "" },
     ]);
+    track("coach_message_sent", {
+      conversation_kind: conversationKind,
+      conversation_id: conversationId ?? null,
+      message_length: trimmed.length,
+    });
 
     let res: Response;
     try {
@@ -168,7 +174,7 @@ export function CoachChat({
     } finally {
       setBusy(false);
     }
-  }, [busy, conversationId, input, remaining]);
+  }, [busy, conversationId, conversationKind, input, remaining]);
 
   const newConversation = useCallback(() => {
     setConversationId(null);

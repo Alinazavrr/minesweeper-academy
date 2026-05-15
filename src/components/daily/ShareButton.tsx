@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { track } from "@/lib/analytics/track";
 
 type Props = {
   date: string;
@@ -59,6 +60,7 @@ export function ShareButton({
       await navigator.clipboard.writeText(message);
       setCopied("copied");
       setTimeout(() => setCopied("idle"), 2000);
+      track("share_card_copied", { date, difficulty, time_ms: timeMs });
     } catch {
       setCopied("error");
       setTimeout(() => setCopied("idle"), 2000);
@@ -70,7 +72,8 @@ export function ShareButton({
     const text = `I solved today's Minesweeper Daily in ${formatTime(timeMs)}. Beat me: ${tweet}`;
     const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
     window.open(intent, "_blank", "noopener");
-  }, [buildShareUrl, timeMs]);
+    track("share_card_tweet_intent", { date, difficulty, time_ms: timeMs });
+  }, [buildShareUrl, date, difficulty, timeMs]);
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs">

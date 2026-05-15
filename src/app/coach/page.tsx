@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CoachLayout } from "@/components/coach/CoachLayout";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import {
   getActiveConversation,
   getCoachUsage,
@@ -51,13 +52,14 @@ export default async function CoachPage(props: {
 
   return (
     <main className="flex flex-1 flex-col px-4 py-6">
-      <nav className="mx-auto mb-3 w-full max-w-6xl">
+      <nav className="mx-auto mb-3 flex w-full max-w-6xl items-center justify-between">
         <Link
           href="/"
           className="text-sm font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
         >
           ← Minesweeper Academy
         </Link>
+        <ThemeToggle />
       </nav>
       <CoachLayout
         conversations={conversations}

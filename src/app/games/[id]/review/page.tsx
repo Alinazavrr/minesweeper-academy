@@ -8,6 +8,7 @@ import {
   type BoardLayout,
 } from "@minesweeper/engine";
 import { ProTierDialog } from "@/components/billing/ProTierDialog";
+import { ReviewAnalytics } from "@/components/analytics/ReviewAnalytics";
 import { ReplayPlayer } from "@/components/review/ReplayPlayer";
 import { startPostGameReviewAndRedirect } from "@/app/coach/actions";
 import { getGameForReview } from "@/lib/db/games";
@@ -94,6 +95,12 @@ export default async function ReviewPage(props: {
 
   return (
     <main className="flex flex-1 flex-col px-4 py-8">
+      <ReviewAnalytics
+        gameId={game.id}
+        difficulty={game.difficulty}
+        result={game.result}
+        sourceMode={game.source_mode}
+      />
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
         <header className="flex items-center justify-between">
           <Link

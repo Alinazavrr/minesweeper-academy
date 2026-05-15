@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ENGINE_VERSION } from "@minesweeper/engine";
+import { LandingAnalytics } from "@/components/analytics/LandingAnalytics";
 import { LandingPreviewBoard } from "@/components/landing/LandingPreviewBoard";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { todayUtcDateString } from "@/lib/games/daily";
 
 const FEATURE_PILLARS: ReadonlyArray<{
@@ -40,6 +42,11 @@ export default function Home() {
 
   return (
     <main className="flex flex-1 flex-col">
+      <LandingAnalytics />
+      {/* Top bar with theme toggle */}
+      <div className="absolute right-4 top-4 z-10">
+        <ThemeToggle />
+      </div>
       {/* Hero */}
       <section className="border-b border-zinc-200 bg-gradient-to-br from-emerald-50 via-white to-zinc-50 px-6 py-20 dark:border-zinc-800 dark:from-emerald-950/30 dark:via-zinc-950 dark:to-zinc-950">
         <div className="mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_auto]">
