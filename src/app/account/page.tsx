@@ -21,6 +21,39 @@ type UserCurrency = Pick<
   Database["public"]["Tables"]["user_currency"]["Row"],
   "mines_balance" | "total_earned"
 >;
+type RecentGame = Pick<
+  Database["public"]["Tables"]["games"]["Row"],
+  | "id"
+  | "difficulty"
+  | "result"
+  | "time_ms"
+  | "hints_used"
+  | "flags_correct"
+  | "mine_count"
+  | "finished_at"
+>;
+
+const DIFFICULTY_LABEL: Record<RecentGame["difficulty"], string> = {
+  beginner: "Beginner",
+  intermediate: "Intermediate",
+  expert: "Expert",
+  custom: "Custom",
+};
+
+function formatTime(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+}
+
+function formatFinishedAt(iso: string): string {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(iso));
+}
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -32,27 +65,40 @@ export default async function AccountPage() {
   }
 
   const userId = claimsData.claims.sub;
-  const [profileResponse, subscriptionResponse, currencyResponse] =
-    await Promise.all([
-      supabase
-        .from("users")
-        .select("id,email,display_name,created_at")
-        .eq("id", userId)
-        .maybeSingle(),
-      supabase
-        .from("subscriptions")
-        .select("tier,granted_via,granted_at")
-        .eq("user_id", userId)
-        .maybeSingle(),
-      supabase
-        .from("user_currency")
-        .select("mines_balance,total_earned")
-        .eq("user_id", userId)
-        .maybeSingle(),
-    ]);
+  const [
+    profileResponse,
+    subscriptionResponse,
+    currencyResponse,
+    gamesResponse,
+  ] = await Promise.all([
+    supabase
+      .from("users")
+      .select("id,email,display_name,created_at")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase
+      .from("subscriptions")
+      .select("tier,granted_via,granted_at")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    supabase
+      .from("user_currency")
+      .select("mines_balance,total_earned")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    supabase
+      .from("games")
+      .select(
+        "id,difficulty,result,time_ms,hints_used,flags_correct,mine_count,finished_at",
+      )
+      .eq("user_id", userId)
+      .order("finished_at", { ascending: false })
+      .limit(10),
+  ]);
   const profile = profileResponse.data as UserProfile | null;
   const subscription = subscriptionResponse.data as Subscription | null;
   const currency = currencyResponse.data as UserCurrency | null;
+  const recentGames = (gamesResponse.data ?? []) as RecentGame[];
 
   const email = claimsData.claims.email ?? profile?.email ?? "Signed-in user";
   const joinedAt = profile?.created_at
@@ -125,20 +171,73 @@ export default async function AccountPage() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-dashed border-zinc-300 p-5 dark:border-zinc-700">
-          <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-50">
-            No saved games yet
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-            Play your first game to start building your stats.
-          </p>
-          <Link
-            href="/play"
-            className="mt-4 inline-flex rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500"
-          >
-            Quick play
-          </Link>
-        </section>
+        {recentGames.length === 0 ? (
+          <section className="rounded-lg border border-dashed border-zinc-300 p-5 dark:border-zinc-700">
+            <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-50">
+              No saved games yet
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+              Play your first game to start building your stats.
+            </p>
+            <Link
+              href="/play"
+              className="mt-4 inline-flex rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500"
+            >
+              Quick play
+            </Link>
+          </section>
+        ) : (
+          <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-50">
+                Recent games
+              </h2>
+              <Link
+                href="/play"
+                className="text-sm font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
+              >
+                Play again →
+              </Link>
+            </div>
+            <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+              {recentGames.map((game) => (
+                <li
+                  key={game.id}
+                  className="grid grid-cols-2 gap-2 py-2 text-sm sm:grid-cols-5"
+                >
+                  <span className="font-medium text-zinc-950 dark:text-zinc-50">
+                    {DIFFICULTY_LABEL[game.difficulty]}
+                  </span>
+                  <span
+                    className={
+                      game.result === "win"
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : game.result === "loss"
+                          ? "text-red-700 dark:text-red-300"
+                          : "text-zinc-500"
+                    }
+                  >
+                    {game.result === "win"
+                      ? "Win"
+                      : game.result === "loss"
+                        ? "Loss"
+                        : "Abandoned"}
+                  </span>
+                  <span className="font-mono tabular-nums text-zinc-700 dark:text-zinc-300">
+                    {formatTime(game.time_ms)}
+                  </span>
+                  <span className="text-zinc-500 dark:text-zinc-400">
+                    {game.flags_correct}/{game.mine_count} flags
+                    {game.hints_used > 0 ? ` · ${game.hints_used} hint${game.hints_used === 1 ? "" : "s"}` : ""}
+                  </span>
+                  <span className="text-zinc-500 dark:text-zinc-400 sm:text-right">
+                    {formatFinishedAt(game.finished_at)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </main>
   );
