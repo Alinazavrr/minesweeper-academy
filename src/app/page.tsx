@@ -29,6 +29,12 @@ export default function Home() {
             Quick play
           </Link>
           <Link
+            href="/coach"
+            className="rounded-md border border-zinc-300 px-5 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-50 dark:hover:bg-zinc-900"
+          >
+            AI Coach
+          </Link>
+          <Link
             href="/auth?mode=sign-up"
             className="rounded-md border border-zinc-300 px-5 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-50 dark:hover:bg-zinc-900"
           >
