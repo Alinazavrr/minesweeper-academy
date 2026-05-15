@@ -9,6 +9,8 @@ import {
   type GameState,
 } from "@minesweeper/engine";
 import { create } from "zustand";
+import { saveQuickPlayGame, type SaveGameResult } from "@/app/play/actions";
+import { buildSaveGamePayload } from "@/lib/games/stats";
 
 export type Difficulty = "beginner" | "intermediate" | "expert";
 
@@ -24,12 +26,26 @@ export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
   expert: { rows: 16, cols: 30, mineCount: 99 },
 };
 
+export type SaveUiStatus =
+  | { kind: "pending" }
+  | { kind: "saved" }
+  | { kind: "unauthenticated" }
+  | { kind: "error"; message: string };
+
+export type SaveStatus = {
+  /** The layout.seed of the game this save belongs to. Used to scope the
+   * status to a single game so a stale save doesn't bleed into the next one. */
+  seed: string;
+  ui: SaveUiStatus;
+};
+
 type Store = {
   difficulty: Difficulty;
   layout: BoardLayout;
   state: GameState;
   hint: { row: number; col: number } | null;
   hintsUsed: number;
+  saveStatus: SaveStatus | null;
   newGame: (difficulty?: Difficulty) => void;
   reveal: (row: number, col: number) => void;
   flag: (row: number, col: number) => void;
@@ -62,79 +78,144 @@ function fresh(
   return { layout, state: initialState(layout) };
 }
 
-export const useGameStore = create<Store>((set, get) => ({
-  difficulty: "beginner",
-  ...fresh("beginner"),
-  hint: null,
-  hintsUsed: 0,
+function uiFromResult(result: SaveGameResult): SaveUiStatus {
+  switch (result.status) {
+    case "saved":
+      return { kind: "saved" };
+    case "unauthenticated":
+      return { kind: "unauthenticated" };
+    case "invalid":
+    case "error":
+      return { kind: "error", message: result.message };
+  }
+}
 
-  newGame: (d) => {
-    const difficulty = d ?? get().difficulty;
-    set({ difficulty, ...fresh(difficulty), hint: null, hintsUsed: 0 });
-  },
+export const useGameStore = create<Store>((set, get) => {
+  /**
+   * Fires once per (seed, terminal status) pair. Running inside store actions
+   * — not a React effect — means strict-mode double-mounts can't cause double
+   * inserts. The seed guard also rejects the rare case where two engine state
+   * updates back-to-back both transition to terminal (can't happen with the
+   * current engine, but the guard is cheap).
+   */
+  function maybePersistFinish(prevState: GameState) {
+    const next = get();
+    const wasTerminal =
+      prevState.status === "won" || prevState.status === "lost";
+    const isTerminal =
+      next.state.status === "won" || next.state.status === "lost";
+    if (wasTerminal || !isTerminal) return;
+    if (next.saveStatus?.seed === next.layout.seed) return;
 
-  reveal: (row, col) => {
-    const { state, difficulty, layout } = get();
-    if (state.status === "idle") {
-      // First-click safety: regenerate the layout with this cell forbidden
-      // from being a mine, then apply the reveal in one atomic step. The
-      // seed is preserved so the game stays reproducible.
-      const fc = fresh(difficulty, { row, col }, layout.seed);
-      const { state: next } = applyAction(fc.state, {
+    const seed = next.layout.seed;
+    const payload = buildSaveGamePayload({
+      difficulty: next.difficulty,
+      layout: next.layout,
+      state: next.state,
+      hintsUsed: next.hintsUsed,
+    });
+    set({ saveStatus: { seed, ui: { kind: "pending" } } });
+    saveQuickPlayGame(payload)
+      .then((result) => {
+        if (get().layout.seed !== seed) return;
+        set({ saveStatus: { seed, ui: uiFromResult(result) } });
+      })
+      .catch((err: unknown) => {
+        if (get().layout.seed !== seed) return;
+        const message = err instanceof Error ? err.message : "Save failed";
+        set({ saveStatus: { seed, ui: { kind: "error", message } } });
+      });
+  }
+
+  return {
+    difficulty: "beginner",
+    ...fresh("beginner"),
+    hint: null,
+    hintsUsed: 0,
+    saveStatus: null,
+
+    newGame: (d) => {
+      const difficulty = d ?? get().difficulty;
+      set({
+        difficulty,
+        ...fresh(difficulty),
+        hint: null,
+        hintsUsed: 0,
+        saveStatus: null,
+      });
+    },
+
+    reveal: (row, col) => {
+      const { state, difficulty, layout } = get();
+      if (state.status === "idle") {
+        // First-click safety: regenerate the layout with this cell forbidden
+        // from being a mine, then apply the reveal in one atomic step. The
+        // seed is preserved so the game stays reproducible.
+        const fc = fresh(difficulty, { row, col }, layout.seed);
+        const { state: next } = applyAction(fc.state, {
+          kind: "reveal",
+          row,
+          col,
+          t: Date.now(),
+        });
+        set({ layout: fc.layout, state: next, hint: null });
+        maybePersistFinish(state);
+        return;
+      }
+      const { state: next } = applyAction(state, {
         kind: "reveal",
         row,
         col,
         t: Date.now(),
       });
-      set({ layout: fc.layout, state: next, hint: null });
-      return;
-    }
-    const { state: next } = applyAction(state, {
-      kind: "reveal",
-      row,
-      col,
-      t: Date.now(),
-    });
-    set({ state: next, hint: null });
-  },
+      set({ state: next, hint: null });
+      maybePersistFinish(state);
+    },
 
-  flag: (row, col) => {
-    const { state: next } = applyAction(get().state, {
-      kind: "flag",
-      row,
-      col,
-      t: Date.now(),
-    });
-    set({ state: next, hint: null });
-  },
+    flag: (row, col) => {
+      const prev = get().state;
+      const { state: next } = applyAction(prev, {
+        kind: "flag",
+        row,
+        col,
+        t: Date.now(),
+      });
+      set({ state: next, hint: null });
+      maybePersistFinish(prev);
+    },
 
-  question: (row, col) => {
-    const { state: next } = applyAction(get().state, {
-      kind: "question",
-      row,
-      col,
-      t: Date.now(),
-    });
-    set({ state: next, hint: null });
-  },
+    question: (row, col) => {
+      const prev = get().state;
+      const { state: next } = applyAction(prev, {
+        kind: "question",
+        row,
+        col,
+        t: Date.now(),
+      });
+      set({ state: next, hint: null });
+      maybePersistFinish(prev);
+    },
 
-  chord: (row, col) => {
-    const { state: next } = applyAction(get().state, {
-      kind: "chord",
-      row,
-      col,
-      t: Date.now(),
-    });
-    set({ state: next, hint: null });
-  },
+    chord: (row, col) => {
+      const prev = get().state;
+      const { state: next } = applyAction(prev, {
+        kind: "chord",
+        row,
+        col,
+        t: Date.now(),
+      });
+      set({ state: next, hint: null });
+      maybePersistFinish(prev);
+    },
 
-  showHint: () => {
-    const next = findSafeCell(get().state);
-    set((s) => ({
-      hint: next,
-      hintsUsed: next !== null ? s.hintsUsed + 1 : s.hintsUsed,
-    }));
-  },
+    showHint: () => {
+      const next = findSafeCell(get().state);
+      set((s) => ({
+        hint: next,
+        hintsUsed: next !== null ? s.hintsUsed + 1 : s.hintsUsed,
+      }));
+    },
 
-  clearHint: () => set({ hint: null }),
-}));
+    clearHint: () => set({ hint: null }),
+  };
+});
