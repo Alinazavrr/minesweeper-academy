@@ -27,3 +27,71 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* =============================================================
+ * Cosmetic skins — overrides applied when the user has the matching
+ * skin equipped (class on <html> is set by <SkinApplier>).
+ *
+ * "blue-ui": recolor every emerald accent on the site to blue.
+ * "blue-board": recolor the Minesweeper grid (zinc neutrals) to blue.
+ * =============================================================*/
+
+/* ----- blue-ui ----- */
+html.skin-ui-blue .bg-emerald-50 { background-color: #eff6ff !important; } /* blue-50 */
+html.skin-ui-blue .bg-emerald-100 { background-color: #dbeafe !important; }
+html.skin-ui-blue .bg-emerald-400 { background-color: #60a5fa !important; }
+html.skin-ui-blue .bg-emerald-500 { background-color: #3b82f6 !important; }
+html.skin-ui-blue .bg-emerald-600 { background-color: #2563eb !important; }
+html.skin-ui-blue .bg-emerald-700 { background-color: #1d4ed8 !important; }
+html.skin-ui-blue .bg-emerald-900 { background-color: #1e3a8a !important; }
+html.skin-ui-blue .bg-emerald-950 { background-color: #172554 !important; }
+
+html.skin-ui-blue .bg-emerald-50\/60 { background-color: rgb(239 246 255 / 0.6) !important; }
+html.skin-ui-blue .bg-emerald-950\/20 { background-color: rgb(23 37 84 / 0.2) !important; }
+html.skin-ui-blue .bg-emerald-950\/30 { background-color: rgb(23 37 84 / 0.3) !important; }
+
+html.skin-ui-blue .text-emerald-300 { color: #93c5fd !important; }
+html.skin-ui-blue .text-emerald-400 { color: #60a5fa !important; }
+html.skin-ui-blue .text-emerald-600 { color: #2563eb !important; }
+html.skin-ui-blue .text-emerald-700 { color: #1d4ed8 !important; }
+html.skin-ui-blue .text-emerald-800 { color: #1e40af !important; }
+html.skin-ui-blue .text-emerald-100 { color: #dbeafe !important; }
+
+html.skin-ui-blue .border-emerald-200 { border-color: #bfdbfe !important; }
+html.skin-ui-blue .border-emerald-300 { border-color: #93c5fd !important; }
+html.skin-ui-blue .border-emerald-400 { border-color: #60a5fa !important; }
+html.skin-ui-blue .border-emerald-500 { border-color: #3b82f6 !important; }
+html.skin-ui-blue .border-emerald-700 { border-color: #1d4ed8 !important; }
+html.skin-ui-blue .border-emerald-800 { border-color: #1e40af !important; }
+html.skin-ui-blue .border-emerald-900 { border-color: #1e3a8a !important; }
+
+html.skin-ui-blue .hover\:bg-emerald-500:hover { background-color: #3b82f6 !important; }
+html.skin-ui-blue .hover\:bg-emerald-600:hover { background-color: #2563eb !important; }
+html.skin-ui-blue .hover\:text-emerald-300:hover { color: #93c5fd !important; }
+html.skin-ui-blue .hover\:text-emerald-600:hover { color: #2563eb !important; }
+html.skin-ui-blue .hover\:border-emerald-400:hover { border-color: #60a5fa !important; }
+html.skin-ui-blue .hover\:border-emerald-700:hover { border-color: #1d4ed8 !important; }
+
+html.skin-ui-blue .ring-emerald-500 { --tw-ring-color: #3b82f6 !important; }
+
+html.skin-ui-blue .from-emerald-50 { --tw-gradient-from: #eff6ff !important; }
+html.skin-ui-blue .from-emerald-950\/30 { --tw-gradient-from: rgb(23 37 84 / 0.3) !important; }
+
+/* ----- blue-board ----- */
+/* Only target cells inside the board grid (role="grid"). */
+html.skin-board-blue [role="grid"] .bg-zinc-200 { background-color: #bfdbfe !important; } /* blue-200 */
+html.skin-board-blue [role="grid"] .bg-zinc-700 { background-color: #1e40af !important; } /* blue-800 */
+html.skin-board-blue [role="grid"] .bg-zinc-100 { background-color: #dbeafe !important; } /* blue-100 */
+html.skin-board-blue [role="grid"] .bg-zinc-800 { background-color: #1e3a8a !important; } /* blue-900 */
+
+html.skin-board-blue [role="grid"] .hover\:bg-zinc-300:hover { background-color: #93c5fd !important; }
+html.skin-board-blue [role="grid"] .hover\:bg-zinc-600:hover { background-color: #1d4ed8 !important; }
+html.skin-board-blue [role="grid"] .hover\:bg-zinc-200:hover { background-color: #bfdbfe !important; }
+html.skin-board-blue [role="grid"] .hover\:bg-zinc-700:hover { background-color: #1e40af !important; }
+html.skin-board-blue [role="grid"] .active\:bg-zinc-100:active { background-color: #dbeafe !important; }
+html.skin-board-blue [role="grid"] .active\:bg-zinc-800:active { background-color: #1e3a8a !important; }
+
+html.skin-board-blue [role="grid"] .border-zinc-300 { border-color: #93c5fd !important; }
+html.skin-board-blue [role="grid"] .border-zinc-400 { border-color: #60a5fa !important; }
+html.skin-board-blue [role="grid"] .border-zinc-600 { border-color: #1d4ed8 !important; }
+html.skin-board-blue [role="grid"] .border-zinc-700 { border-color: #1d4ed8 !important; }

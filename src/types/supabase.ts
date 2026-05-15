@@ -506,6 +506,41 @@ export type Database = {
           },
         ]
       }
+      user_cosmetics: {
+        Row: {
+          acquired_at: string
+          equipped: boolean
+          kind: Database["public"]["Enums"]["cosmetic_kind"]
+          price: number
+          skin_id: string
+          user_id: string
+        }
+        Insert: {
+          acquired_at?: string
+          equipped?: boolean
+          kind: Database["public"]["Enums"]["cosmetic_kind"]
+          price: number
+          skin_id: string
+          user_id: string
+        }
+        Update: {
+          acquired_at?: string
+          equipped?: boolean
+          kind?: Database["public"]["Enums"]["cosmetic_kind"]
+          price?: number
+          skin_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_cosmetics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_currency: {
         Row: {
           daily_earn_cap_reset_at: string | null
@@ -637,10 +672,36 @@ export type Database = {
           valid_until: string
         }[]
       }
+      purchase_skin: {
+        Args: {
+          target_kind: Database["public"]["Enums"]["cosmetic_kind"]
+          target_price: number
+          target_skin_id: string
+        }
+        Returns: {
+          already_owned: boolean
+          equipped: boolean
+          kind: Database["public"]["Enums"]["cosmetic_kind"]
+          mines_balance: number
+          price: number
+          skin_id: string
+        }[]
+      }
+      set_equipped_skin: {
+        Args: {
+          target_kind: Database["public"]["Enums"]["cosmetic_kind"]
+          target_skin_id: string
+        }
+        Returns: {
+          equipped_skin_id: string
+          kind: Database["public"]["Enums"]["cosmetic_kind"]
+        }[]
+      }
     }
     Enums: {
       coach_conversation_kind: "post_game_review" | "free_chat"
       coach_message_role: "user" | "assistant" | "system"
+      cosmetic_kind: "ui" | "board"
       game_difficulty: "beginner" | "intermediate" | "expert" | "custom"
       game_result: "win" | "loss" | "abandoned"
       game_source_mode:
@@ -795,6 +856,7 @@ export const Constants = {
     Enums: {
       coach_conversation_kind: ["post_game_review", "free_chat"],
       coach_message_role: ["user", "assistant", "system"],
+      cosmetic_kind: ["ui", "board"],
       game_difficulty: ["beginner", "intermediate", "expert", "custom"],
       game_result: ["win", "loss", "abandoned"],
       game_source_mode: [

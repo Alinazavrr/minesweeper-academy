@@ -5,7 +5,6 @@ import { LessonAnalytics } from "@/components/analytics/LessonAnalytics";
 import { Markdown } from "@/components/coach/Markdown";
 import { DemoBoard } from "@/components/lessons/DemoBoard";
 import { PracticeRunner } from "@/components/lessons/PracticeRunner";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { LESSONS, categoryLabel, getLesson } from "@/lib/lessons/registry";
 
 type RouteParams = { slug: string };
@@ -47,19 +46,16 @@ export default async function LessonPage(props: {
       />
       <article className="mx-auto flex w-full max-w-3xl flex-col gap-8">
         <header className="flex flex-col gap-3 border-b border-zinc-200 pb-6 dark:border-zinc-800">
-          <div className="flex items-center justify-between">
-            <nav className="flex items-center gap-2 text-sm">
-              <Link
-                href="/learn"
-                className="font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
-              >
-                ← Academy
-              </Link>
-              <span className="text-zinc-400">/</span>
-              <span className="text-zinc-500">{categoryLabel(lesson.category)}</span>
-            </nav>
-            <ThemeToggle />
-          </div>
+          <nav className="flex items-center gap-2 text-sm">
+            <Link
+              href="/learn"
+              className="font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
+            >
+              ← Academy
+            </Link>
+            <span className="text-zinc-400">/</span>
+            <span className="text-zinc-500">{categoryLabel(lesson.category)}</span>
+          </nav>
           <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
             {lesson.title}
           </h1>

@@ -21,7 +21,6 @@ import type {
 } from "@/lib/db/daily";
 import { tryEncodeReplay } from "@/lib/games/stats";
 import { ShareButton } from "@/components/daily/ShareButton";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { track } from "@/lib/analytics/track";
 
 type Props = {
@@ -661,15 +660,6 @@ export function DailyView({
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <header className="flex flex-col gap-2 border-b border-zinc-200 pb-6 dark:border-zinc-800">
-        <div className="flex items-center justify-between">
-          <Link
-            href="/"
-            className="text-sm font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
-          >
-            ← Minesweeper Academy
-          </Link>
-          <ThemeToggle />
-        </div>
         <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
           Daily Challenge · {challenge.date}
         </h1>

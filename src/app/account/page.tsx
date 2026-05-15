@@ -3,7 +3,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOutAction } from "@/app/auth/actions";
 import { ProTierDialog } from "@/components/billing/ProTierDialog";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { coachLimitByTier, formatSubscriptionTier } from "@/lib/billing/tiers";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
@@ -154,12 +153,17 @@ export default async function AccountPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <ThemeToggle />
             <Link
               href="/stats"
               className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-50 dark:hover:bg-zinc-900"
             >
               Full stats →
+            </Link>
+            <Link
+              href="/shop"
+              className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-50 dark:hover:bg-zinc-900"
+            >
+              Shop →
             </Link>
             <form action={signOutAction}>
               <button
