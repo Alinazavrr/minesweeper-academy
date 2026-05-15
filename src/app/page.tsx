@@ -15,12 +15,18 @@ export default function Home() {
           A training and competitive platform for Minesweeper players — Chess.com
           for logic lovers.
         </p>
-        <div className="flex items-center justify-center gap-3 pt-2">
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
           <Link
             href="/play"
             className="rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500"
           >
             Quick play →
+          </Link>
+          <Link
+            href="/auth?mode=sign-up"
+            className="rounded-md border border-zinc-300 px-5 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-50 dark:hover:bg-zinc-900"
+          >
+            Sign in
           </Link>
         </div>
         <p className="text-sm text-zinc-500">
