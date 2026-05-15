@@ -6,6 +6,8 @@
 
 The product spec lives in `ideas/PROJECT_PLAN.md` (1042 lines). Every implementation decision references a `§` from that doc. When in doubt, read the spec, then code.
 
+Current repo handoff/status lives in `CURRENT_STATE.md`.
+
 CTO go-forward plan (scope cuts, critical path, decisions): `C:\Users\Alinazar\.claude\plans\look-at-the-project-plan-md-glittery-steele.md`.
 
 ## Stack snapshot
