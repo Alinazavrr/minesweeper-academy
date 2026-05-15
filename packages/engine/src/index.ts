@@ -7,7 +7,7 @@
 
 export const ENGINE_VERSION = "0.1.0";
 
-export { generateBoard, validateBoard } from "./generate";
+export { generateBoard, layoutFromMines, validateBoard } from "./generate";
 export { initialState } from "./state";
 export { applyAction } from "./apply";
 export { findSafeCell, annotateMoves } from "./solver";

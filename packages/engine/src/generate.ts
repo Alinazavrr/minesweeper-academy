@@ -39,6 +39,59 @@ export function generateBoard(config: BoardConfig): BoardLayout {
 }
 
 /**
+ * Build a BoardLayout from explicit mine indices — no PRNG.
+ *
+ * Used by Academy lessons (and any other surface that wants a hand-authored
+ * deterministic board) so we don't have to cherry-pick seeds. The output is
+ * shape-identical to `generateBoard` so callers can pass it straight through
+ * to `initialState` / `applyAction`.
+ *
+ * `seed` is preserved as metadata only — it isn't used to derive anything.
+ * Pass a stable string (e.g. `lesson:1-2-1-pattern`) so the resulting layout
+ * is identifiable in logs and serialized game records.
+ */
+export function layoutFromMines(input: {
+  rows: number;
+  cols: number;
+  mines: ReadonlyArray<number>;
+  seed: string;
+  noGuess?: boolean;
+}): BoardLayout {
+  const { rows, cols, mines, seed, noGuess = false } = input;
+  if (!Number.isInteger(rows) || rows <= 0) {
+    throw new Error(`layoutFromMines: rows must be positive integer, got ${rows}`);
+  }
+  if (!Number.isInteger(cols) || cols <= 0) {
+    throw new Error(`layoutFromMines: cols must be positive integer, got ${cols}`);
+  }
+  const total = rows * cols;
+  const mineSet = new Set<number>();
+  for (const idx of mines) {
+    if (!Number.isInteger(idx) || idx < 0 || idx >= total) {
+      throw new Error(
+        `layoutFromMines: mine index ${idx} out of range for ${rows}x${cols}`,
+      );
+    }
+    mineSet.add(idx);
+  }
+  if (mineSet.size >= total) {
+    throw new Error(
+      `layoutFromMines: ${mineSet.size} mines leaves no safe cells on a ${rows}x${cols} board`,
+    );
+  }
+  const threeBV = computeThreeBV(rows, cols, mineSet);
+  return {
+    rows,
+    cols,
+    mineCount: mineSet.size,
+    noGuess,
+    seed,
+    mines: mineSet,
+    threeBV,
+  };
+}
+
+/**
  * Validate a layout's internal consistency. Cheap — O(rows*cols) at worst.
  * The matchmaker / validator calls this before trusting any layout payload.
  */

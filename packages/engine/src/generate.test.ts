@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { generateBoard, validateBoard } from "./generate";
+import { generateBoard, layoutFromMines, validateBoard } from "./generate";
 import type { BoardConfig } from "./types";
 
 const beginner: BoardConfig = {
@@ -175,5 +175,45 @@ describe("validateBoard", () => {
     const layout = generateBoard(beginner);
     expect(validateBoard({ ...layout, rows: -1 })).toBe(false);
     expect(validateBoard({ ...layout, cols: 0 })).toBe(false);
+  });
+});
+
+describe("layoutFromMines", () => {
+  test("builds a layout from explicit mines", () => {
+    const layout = layoutFromMines({
+      rows: 3,
+      cols: 3,
+      mines: [0, 4],
+      seed: "lesson:test",
+    });
+    expect(layout.rows).toBe(3);
+    expect(layout.cols).toBe(3);
+    expect(layout.mineCount).toBe(2);
+    expect(layout.seed).toBe("lesson:test");
+    expect([...layout.mines].sort()).toEqual([0, 4]);
+    expect(layout.threeBV).toBeGreaterThan(0);
+    expect(validateBoard(layout)).toBe(true);
+  });
+
+  test("dedupes repeated mine indices", () => {
+    const layout = layoutFromMines({
+      rows: 2,
+      cols: 2,
+      mines: [0, 0, 3],
+      seed: "lesson:dedupe",
+    });
+    expect(layout.mineCount).toBe(2);
+  });
+
+  test("rejects out-of-range mine indices", () => {
+    expect(() =>
+      layoutFromMines({ rows: 2, cols: 2, mines: [4], seed: "x" }),
+    ).toThrow(/out of range/);
+  });
+
+  test("rejects boards with no safe cells", () => {
+    expect(() =>
+      layoutFromMines({ rows: 2, cols: 2, mines: [0, 1, 2, 3], seed: "x" }),
+    ).toThrow(/no safe cells/);
   });
 });
