@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { saveQuickPlayGame, type SaveGameResult } from "@/app/play/actions";
+import { buildSaveGamePayload } from "@/lib/games/stats";
 import { useGameStore, type Difficulty } from "@/stores/game";
 import { cn } from "@/lib/cn";
 import { Board } from "./Board";
@@ -75,8 +78,86 @@ function HintBar() {
   );
 }
 
+type SaveUiState =
+  | { kind: "pending" }
+  | { kind: "saved" }
+  | { kind: "unauthenticated" }
+  | { kind: "error"; message: string };
+
+function uiFromResult(result: SaveGameResult): SaveUiState {
+  switch (result.status) {
+    case "saved":
+      return { kind: "saved" };
+    case "unauthenticated":
+      return { kind: "unauthenticated" };
+    case "invalid":
+    case "error":
+      return { kind: "error", message: result.message };
+  }
+}
+
+/**
+ * Fires once per terminal status transition. Keyed by seed in the parent so a
+ * new game remounts this component and resets its state cleanly.
+ */
+function SaveOnFinish() {
+  const [ui, setUi] = useState<SaveUiState>({ kind: "pending" });
+
+  useEffect(() => {
+    let cancelled = false;
+    const { layout, state, difficulty, hintsUsed } = useGameStore.getState();
+    if (state.status !== "won" && state.status !== "lost") {
+      return;
+    }
+    const payload = buildSaveGamePayload({
+      difficulty,
+      layout,
+      state,
+      hintsUsed,
+    });
+    saveQuickPlayGame(payload)
+      .then((result) => {
+        if (!cancelled) setUi(uiFromResult(result));
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : "Save failed";
+        setUi({ kind: "error", message });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (ui.kind === "pending") {
+    return <span className="opacity-70">Saving…</span>;
+  }
+  if (ui.kind === "saved") {
+    return <span className="text-emerald-700 dark:text-emerald-300">Saved to your account</span>;
+  }
+  if (ui.kind === "unauthenticated") {
+    return (
+      <span className="text-zinc-600 dark:text-zinc-400">
+        <a href="/auth?mode=sign-in&next=/play" className="underline">
+          Sign in
+        </a>{" "}
+        to save your games
+      </span>
+    );
+  }
+  return (
+    <span
+      title={ui.message}
+      className="text-red-700 dark:text-red-300"
+    >
+      Save failed
+    </span>
+  );
+}
+
 function GameOverBanner() {
   const status = useGameStore((s) => s.state.status);
+  const seed = useGameStore((s) => s.layout.seed);
   const newGame = useGameStore((s) => s.newGame);
   if (status !== "won" && status !== "lost") return null;
   const won = status === "won";
@@ -92,6 +173,9 @@ function GameOverBanner() {
     >
       <div className="text-lg font-semibold">
         {won ? "You won!" : "Game over"}
+      </div>
+      <div className="mt-1 text-xs">
+        <SaveOnFinish key={seed} />
       </div>
       <button
         type="button"

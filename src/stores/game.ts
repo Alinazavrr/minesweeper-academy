@@ -29,6 +29,7 @@ type Store = {
   layout: BoardLayout;
   state: GameState;
   hint: { row: number; col: number } | null;
+  hintsUsed: number;
   newGame: (difficulty?: Difficulty) => void;
   reveal: (row: number, col: number) => void;
   flag: (row: number, col: number) => void;
@@ -65,10 +66,11 @@ export const useGameStore = create<Store>((set, get) => ({
   difficulty: "beginner",
   ...fresh("beginner"),
   hint: null,
+  hintsUsed: 0,
 
   newGame: (d) => {
     const difficulty = d ?? get().difficulty;
-    set({ difficulty, ...fresh(difficulty), hint: null });
+    set({ difficulty, ...fresh(difficulty), hint: null, hintsUsed: 0 });
   },
 
   reveal: (row, col) => {
@@ -127,7 +129,11 @@ export const useGameStore = create<Store>((set, get) => ({
   },
 
   showHint: () => {
-    set({ hint: findSafeCell(get().state) });
+    const next = findSafeCell(get().state);
+    set((s) => ({
+      hint: next,
+      hintsUsed: next !== null ? s.hintsUsed + 1 : s.hintsUsed,
+    }));
   },
 
   clearHint: () => set({ hint: null }),
