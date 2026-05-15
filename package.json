@@ -9,8 +9,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "pnpm --filter @minesweeper/engine test",
+    "test:app": "vitest run",
     "test:watch": "pnpm --filter @minesweeper/engine test:watch",
-    "test:all": "pnpm -r test"
+    "test:all": "pnpm test:app && pnpm -r test"
   },
   "dependencies": {
     "@minesweeper/engine": "workspace:*",
@@ -33,6 +34,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.1.9"
   }
 }
