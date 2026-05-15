@@ -1,8 +1,8 @@
 "use client";
 
-import { useShallow } from "zustand/react/shallow";
+import { memo } from "react";
+import type { Cell as EngineCell, GameStatus } from "@minesweeper/engine";
 import { cn } from "@/lib/cn";
-import { useGameStore } from "@/stores/game";
 
 const NUMBER_COLORS: Record<number, string> = {
   1: "text-blue-600 dark:text-blue-400",
@@ -19,50 +19,46 @@ type Props = {
   row: number;
   col: number;
   sizePx: number;
+  cell: EngineCell;
+  status: GameStatus;
+  hinted: boolean;
+  onReveal: (row: number, col: number) => void;
+  onFlag: (row: number, col: number) => void;
+  onChord: (row: number, col: number) => void;
 };
 
-export function Cell({ row, col, sizePx }: Props) {
-  const cell = useGameStore(
-    useShallow((s) => {
-      const c = s.state.cells[row]![col]!;
-      return {
-        revealed: c.revealed,
-        flagged: c.flagged,
-        questioned: c.questioned,
-        mine: c.mine,
-        adjacent: c.adjacent,
-      };
-    }),
-  );
-  const status = useGameStore((s) => s.state.status);
-  const hinted = useGameStore(
-    (s) => s.hint !== null && s.hint.row === row && s.hint.col === col,
-  );
-  const reveal = useGameStore((s) => s.reveal);
-  const flag = useGameStore((s) => s.flag);
-  const chord = useGameStore((s) => s.chord);
-
+function CellInner({
+  row,
+  col,
+  sizePx,
+  cell,
+  status,
+  hinted,
+  onReveal,
+  onFlag,
+  onChord,
+}: Props) {
   const gameOver = status === "won" || status === "lost";
 
   const handleClick = (e: React.MouseEvent) => {
     if (gameOver) return;
     if (e.shiftKey && cell.revealed && cell.adjacent > 0) {
-      chord(row, col);
+      onChord(row, col);
       return;
     }
     if (cell.revealed && cell.adjacent > 0) {
-      chord(row, col);
+      onChord(row, col);
       return;
     }
     if (!cell.revealed && !cell.flagged) {
-      reveal(row, col);
+      onReveal(row, col);
     }
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     if (gameOver || cell.revealed) return;
-    flag(row, col);
+    onFlag(row, col);
   };
 
   const fontPx = Math.max(12, Math.floor(sizePx * 0.55));
@@ -73,7 +69,6 @@ export function Cell({ row, col, sizePx }: Props) {
     lineHeight: 1,
   };
 
-  // Hidden cell (also covers flagged and questioned states).
   if (!cell.revealed) {
     const showMine = gameOver && status === "lost" && cell.mine && !cell.flagged;
     const wrongFlag = gameOver && cell.flagged && !cell.mine;
@@ -101,7 +96,6 @@ export function Cell({ row, col, sizePx }: Props) {
     );
   }
 
-  // Revealed mine — this is the cell that ended the game on a loss.
   if (cell.mine) {
     return (
       <div
@@ -114,7 +108,6 @@ export function Cell({ row, col, sizePx }: Props) {
     );
   }
 
-  // Revealed numeric or empty (0).
   return (
     <div
       role="button"
@@ -138,3 +131,25 @@ export function Cell({ row, col, sizePx }: Props) {
     </div>
   );
 }
+
+/**
+ * Memoized so unchanged cells skip render work when their board peer updates.
+ * Comparator covers every field the render reads — handlers must be stable
+ * references (the QuickPlay parent reads them via useGameStore selectors which
+ * are stable; the DailyView parent wraps in useCallback).
+ */
+export const Cell = memo(CellInner, (prev, next) =>
+  prev.row === next.row &&
+  prev.col === next.col &&
+  prev.sizePx === next.sizePx &&
+  prev.cell.revealed === next.cell.revealed &&
+  prev.cell.flagged === next.cell.flagged &&
+  prev.cell.questioned === next.cell.questioned &&
+  prev.cell.mine === next.cell.mine &&
+  prev.cell.adjacent === next.cell.adjacent &&
+  prev.status === next.status &&
+  prev.hinted === next.hinted &&
+  prev.onReveal === next.onReveal &&
+  prev.onFlag === next.onFlag &&
+  prev.onChord === next.onChord,
+);

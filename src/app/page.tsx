@@ -17,10 +17,16 @@ export default function Home() {
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
           <Link
-            href="/play"
+            href="/daily"
             className="rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500"
           >
-            Quick play →
+            Daily challenge →
+          </Link>
+          <Link
+            href="/play"
+            className="rounded-md border border-zinc-300 px-5 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-50 dark:hover:bg-zinc-900"
+          >
+            Quick play
           </Link>
           <Link
             href="/auth?mode=sign-up"

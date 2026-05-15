@@ -139,13 +139,38 @@ function GameOverBanner() {
   );
 }
 
+function QuickBoard() {
+  const difficulty = useGameStore((s) => s.difficulty);
+  const cells = useGameStore((s) => s.state.cells);
+  const rows = useGameStore((s) => s.layout.rows);
+  const cols = useGameStore((s) => s.layout.cols);
+  const status = useGameStore((s) => s.state.status);
+  const hint = useGameStore((s) => s.hint);
+  const reveal = useGameStore((s) => s.reveal);
+  const flag = useGameStore((s) => s.flag);
+  const chord = useGameStore((s) => s.chord);
+  return (
+    <Board
+      size={difficulty}
+      cells={cells}
+      rows={rows}
+      cols={cols}
+      status={status}
+      hint={hint}
+      onReveal={reveal}
+      onFlag={flag}
+      onChord={chord}
+    />
+  );
+}
+
 export function QuickPlay() {
   return (
     <div className="mx-auto flex w-fit max-w-full flex-col items-center gap-4">
       <DifficultySelector />
       <Hud />
       <div className="overflow-x-auto max-w-[calc(100vw-2rem)]">
-        <Board />
+        <QuickBoard />
       </div>
       <HintBar />
       <GameOverBanner />

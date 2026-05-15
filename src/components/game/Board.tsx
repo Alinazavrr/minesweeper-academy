@@ -1,25 +1,59 @@
 "use client";
 
-import { useGameStore, type Difficulty } from "@/stores/game";
+import type { Cell as EngineCell, GameStatus } from "@minesweeper/engine";
 import { Cell } from "./Cell";
 
-const CELL_PX: Record<Difficulty, number> = {
+export type BoardSize = "beginner" | "intermediate" | "expert";
+
+const CELL_PX: Record<BoardSize, number> = {
   beginner: 36,
   intermediate: 30,
   expert: 26,
 };
 
-export function Board() {
-  const difficulty = useGameStore((s) => s.difficulty);
-  const rows = useGameStore((s) => s.layout.rows);
-  const cols = useGameStore((s) => s.layout.cols);
+type Props = {
+  size: BoardSize;
+  cells: ReadonlyArray<ReadonlyArray<EngineCell>>;
+  rows: number;
+  cols: number;
+  status: GameStatus;
+  hint: { row: number; col: number } | null;
+  onReveal: (row: number, col: number) => void;
+  onFlag: (row: number, col: number) => void;
+  onChord: (row: number, col: number) => void;
+};
 
-  const sizePx = CELL_PX[difficulty];
+export function Board({
+  size,
+  cells,
+  rows,
+  cols,
+  status,
+  hint,
+  onReveal,
+  onFlag,
+  onChord,
+}: Props) {
+  const sizePx = CELL_PX[size];
 
   const children: React.ReactNode[] = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      children.push(<Cell key={`${r}-${c}`} row={r} col={c} sizePx={sizePx} />);
+      const hinted = hint !== null && hint.row === r && hint.col === c;
+      children.push(
+        <Cell
+          key={`${r}-${c}`}
+          row={r}
+          col={c}
+          sizePx={sizePx}
+          cell={cells[r]![c]!}
+          status={status}
+          hinted={hinted}
+          onReveal={onReveal}
+          onFlag={onFlag}
+          onChord={onChord}
+        />,
+      );
     }
   }
 
