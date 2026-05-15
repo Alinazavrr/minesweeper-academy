@@ -19,9 +19,20 @@ export type CoachMessage = {
 export type ConversationView = {
   id: string;
   title: string | null;
+  kind: Database["public"]["Enums"]["coach_conversation_kind"];
+  game_id: string | null;
   created_at: string;
   last_message_at: string;
   messages: CoachMessage[];
+};
+
+export type ConversationSummary = {
+  id: string;
+  title: string | null;
+  kind: Database["public"]["Enums"]["coach_conversation_kind"];
+  game_id: string | null;
+  created_at: string;
+  last_message_at: string;
 };
 
 export type CoachUsageView = {
@@ -64,15 +75,38 @@ export async function getActiveConversation(
   const supabase = await createClient();
   const convResp = await supabase
     .from("coach_conversations")
-    .select("id, title, created_at, last_message_at")
+    .select("id, title, kind, game_id, created_at, last_message_at")
     .eq("user_id", userId)
     .eq("kind", "free_chat")
     .order("last_message_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (!convResp.data) return null;
-  const conv = convResp.data;
+  return loadConversationWithMessages(convResp.data);
+}
 
+export async function getConversationById(
+  userId: string,
+  conversationId: string,
+): Promise<ConversationView | null> {
+  const supabase = await createClient();
+  const convResp = await supabase
+    .from("coach_conversations")
+    .select("id, title, kind, game_id, created_at, last_message_at")
+    .eq("id", conversationId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!convResp.data) return null;
+  return loadConversationWithMessages(convResp.data);
+}
+
+async function loadConversationWithMessages(
+  conv: Pick<
+    Database["public"]["Tables"]["coach_conversations"]["Row"],
+    "id" | "title" | "kind" | "game_id" | "created_at" | "last_message_at"
+  >,
+): Promise<ConversationView> {
+  const supabase = await createClient();
   const msgResp = await supabase
     .from("coach_messages")
     .select("role, content, created_at")
@@ -81,10 +115,30 @@ export async function getActiveConversation(
   return {
     id: conv.id,
     title: conv.title,
+    kind: conv.kind,
+    game_id: conv.game_id,
     created_at: conv.created_at,
     last_message_at: conv.last_message_at,
     messages: (msgResp.data ?? []) as CoachMessage[],
   };
+}
+
+/**
+ * Recent conversations for the sidebar. Excludes message bodies so the
+ * payload stays small even with hundreds of threads.
+ */
+export async function listConversations(
+  userId: string,
+  limit = 30,
+): Promise<ConversationSummary[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("coach_conversations")
+    .select("id, title, kind, game_id, created_at, last_message_at")
+    .eq("user_id", userId)
+    .order("last_message_at", { ascending: false })
+    .limit(limit);
+  return (data ?? []) as ConversationSummary[];
 }
 
 export async function getConversationMessages(
@@ -109,11 +163,23 @@ export async function getConversationMessages(
   return (msgResp.data ?? []) as CoachMessage[];
 }
 
-export async function createConversation(userId: string): Promise<string> {
+export async function createConversation(
+  userId: string,
+  options?: {
+    kind?: Database["public"]["Enums"]["coach_conversation_kind"];
+    gameId?: string | null;
+    title?: string | null;
+  },
+): Promise<string> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("coach_conversations")
-    .insert({ user_id: userId, kind: "free_chat", title: null })
+    .insert({
+      user_id: userId,
+      kind: options?.kind ?? "free_chat",
+      game_id: options?.gameId ?? null,
+      title: options?.title ?? null,
+    })
     .select("id")
     .single();
   if (error || !data) {

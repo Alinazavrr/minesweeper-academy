@@ -20,12 +20,15 @@ import type {
   MyDailyResult,
 } from "@/lib/db/daily";
 import { tryEncodeReplay } from "@/lib/games/stats";
+import { ShareButton } from "@/components/daily/ShareButton";
 
 type Props = {
   challenge: DailyChallenge;
   myResult: MyDailyResult | null;
   leaderboard: DailyLeaderboardEntry[];
   signedIn: boolean;
+  myDisplayName: string | null;
+  myRank: number | null;
 };
 
 const SIZE_MAP: Record<DailyChallenge["difficulty"], BoardSize> = {
@@ -531,9 +534,13 @@ function FinishBanner({
 function AlreadyPlayed({
   challenge,
   result,
+  displayName,
+  rank,
 }: {
   challenge: DailyChallenge;
   result: MyDailyResult;
+  displayName: string | null;
+  rank: number | null;
 }) {
   return (
     <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
@@ -546,10 +553,15 @@ function AlreadyPlayed({
         <Stat label="Hints used" value={result.hints_used.toString()} />
         <Stat label="3BV" value={challenge.three_bv.toString()} />
       </dl>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-        <p className="text-zinc-600 dark:text-zinc-400">
-          Come back tomorrow for a new challenge.
-        </p>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+        <ShareButton
+          date={challenge.date}
+          difficulty={challenge.difficulty}
+          timeMs={result.time_ms}
+          hintsUsed={result.hints_used}
+          rank={rank}
+          displayName={displayName}
+        />
         <Link
           href={`/games/${result.game_id}/review`}
           className="font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
@@ -557,6 +569,9 @@ function AlreadyPlayed({
           Review your run →
         </Link>
       </div>
+      <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-500">
+        Come back tomorrow for a new challenge.
+      </p>
     </section>
   );
 }
@@ -628,6 +643,8 @@ export function DailyView({
   myResult,
   leaderboard,
   signedIn,
+  myDisplayName,
+  myRank,
 }: Props) {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -648,7 +665,12 @@ export function DailyView({
       </header>
 
       {myResult ? (
-        <AlreadyPlayed challenge={challenge} result={myResult} />
+        <AlreadyPlayed
+          challenge={challenge}
+          result={myResult}
+          displayName={myDisplayName}
+          rank={myRank}
+        />
       ) : (
         <ActiveGame challenge={challenge} signedIn={signedIn} />
       )}

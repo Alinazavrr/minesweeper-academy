@@ -152,14 +152,22 @@ export default async function AccountPage() {
               Logged in as {email}
             </p>
           </div>
-          <form action={signOutAction}>
-            <button
-              type="submit"
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/stats"
               className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-50 dark:hover:bg-zinc-900"
             >
-              Sign out
-            </button>
-          </form>
+              Full stats →
+            </Link>
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-50 dark:hover:bg-zinc-900"
+              >
+                Sign out
+              </button>
+            </form>
+          </div>
         </header>
 
         <section className="grid gap-4 sm:grid-cols-3">

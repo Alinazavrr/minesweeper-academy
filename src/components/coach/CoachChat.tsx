@@ -1,7 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ProTierDialog } from "@/components/billing/ProTierDialog";
+import { Markdown } from "@/components/coach/Markdown";
 import { cn } from "@/lib/cn";
 
 type Message = {
@@ -20,6 +22,9 @@ type Props = {
   initialConversationId: string | null;
   initialMessages: Message[];
   initialUsage: InitialUsage;
+  conversationKind?: "free_chat" | "post_game_review";
+  conversationTitle?: string | null;
+  reviewGameId?: string | null;
 };
 
 type SseEvent =
@@ -47,7 +52,11 @@ export function CoachChat({
   initialConversationId,
   initialMessages,
   initialUsage,
+  conversationKind = "free_chat",
+  conversationTitle = null,
+  reviewGameId = null,
 }: Props) {
+  const router = useRouter();
   const [conversationId, setConversationId] = useState<string | null>(
     initialConversationId,
   );
@@ -57,6 +66,8 @@ export function CoachChat({
   const [error, setError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(initialUsage.remaining);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Switching threads remounts via `key` in CoachLayout — no in-component
+  // prop-sync useEffect needed (would trigger react-hooks/set-state-in-effect).
 
   // Keep the message list scrolled to the bottom as content streams in.
   useEffect(() => {
@@ -164,7 +175,8 @@ export function CoachChat({
     setMessages([]);
     setError(null);
     setInput("");
-  }, []);
+    router.push("/coach");
+  }, [router]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -174,11 +186,29 @@ export function CoachChat({
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-3">
+    <div className="flex h-full w-full flex-1 flex-col gap-3">
       <header className="flex flex-col gap-3 border-b border-zinc-200 pb-3 dark:border-zinc-800 sm:flex-row sm:items-baseline sm:justify-between">
-        <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
-          AI Coach
-        </h1>
+        <div className="flex flex-col">
+          <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+            AI Coach
+          </h1>
+          {conversationKind === "post_game_review" ? (
+            <p className="mt-0.5 flex items-center gap-2 text-xs text-zinc-500">
+              <span className="rounded-full bg-amber-100 px-1.5 py-0.5 font-semibold uppercase tracking-wider text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                Review
+              </span>
+              {conversationTitle ?? "Post-game review"}
+              {reviewGameId ? (
+                <a
+                  href={`/games/${reviewGameId}/review`}
+                  className="underline decoration-dotted hover:decoration-solid"
+                >
+                  ↗ open replay
+                </a>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
         <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500">
           <span>
             {remaining} / {initialUsage.limit} left today
@@ -255,6 +285,20 @@ export function CoachChat({
 
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === "user";
+  if (!message.content) {
+    return (
+      <div
+        className={cn(
+          "flex w-full",
+          isUser ? "justify-end" : "justify-start",
+        )}
+      >
+        <div className="max-w-[85%] rounded-2xl bg-zinc-100 px-3 py-2 text-sm dark:bg-zinc-800">
+          <span className="inline-block animate-pulse text-zinc-500">…</span>
+        </div>
+      </div>
+    );
+  }
   return (
     <div
       className={cn(
@@ -264,15 +308,13 @@ function MessageBubble({ message }: { message: Message }) {
     >
       <div
         className={cn(
-          "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm",
+          "max-w-[85%] rounded-2xl px-3 py-2 text-sm",
           isUser
-            ? "bg-emerald-600 text-white"
+            ? "whitespace-pre-wrap bg-emerald-600 text-white"
             : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100",
         )}
       >
-        {message.content || (
-          <span className="inline-block animate-pulse text-zinc-500">…</span>
-        )}
+        {isUser ? message.content : <Markdown text={message.content} />}
       </div>
     </div>
   );
