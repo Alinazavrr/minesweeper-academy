@@ -1,5 +1,7 @@
 import {
   ENGINE_VERSION,
+  serializeReplay,
+  type Action,
   type BoardLayout,
   type GameState,
 } from "@minesweeper/engine";
@@ -36,6 +38,8 @@ export type SaveGamePayload = {
   daily_date: string | null;
   arena_match_id: string | null;
   finished_at: string;
+  /** Base64-encoded replay blob; null when capture wasn't available. */
+  replay_blob_b64: string | null;
 };
 
 export type BuildSaveGameInput = {
@@ -43,10 +47,42 @@ export type BuildSaveGameInput = {
   layout: BoardLayout;
   state: GameState;
   hintsUsed: number;
+  /** Empty/omitted when capture wasn't running (legacy paths, tests). */
+  actionLog?: ReadonlyArray<Action>;
 };
 
+/**
+ * Browser-safe base64 encode of a Uint8Array. Keeps replay-encoding logic
+ * in one place so tests and runtime stay aligned.
+ */
+export function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  // Chunk to avoid the apply() argument-count limit on very large blobs.
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(
+      null,
+      Array.from(bytes.subarray(i, Math.min(i + CHUNK, bytes.length))),
+    );
+  }
+  return typeof btoa !== "undefined"
+    ? btoa(binary)
+    : Buffer.from(bytes).toString("base64");
+}
+
+export function tryEncodeReplay(actions: ReadonlyArray<Action>): string | null {
+  if (actions.length === 0) return null;
+  try {
+    const bytes = serializeReplay(actions);
+    return bytesToBase64(bytes);
+  } catch {
+    // Replay capture is best-effort — never block the save on it.
+    return null;
+  }
+}
+
 export function buildSaveGamePayload(input: BuildSaveGameInput): SaveGamePayload {
-  const { difficulty, layout, state, hintsUsed } = input;
+  const { difficulty, layout, state, hintsUsed, actionLog = [] } = input;
   if (state.status !== "won" && state.status !== "lost") {
     throw new Error(
       `buildSaveGamePayload: state must be terminal (won/lost), got ${state.status}`,
@@ -90,5 +126,6 @@ export function buildSaveGamePayload(input: BuildSaveGameInput): SaveGamePayload
     daily_date: null,
     arena_match_id: null,
     finished_at: new Date(state.finishedAt).toISOString(),
+    replay_blob_b64: tryEncodeReplay(actionLog),
   };
 }

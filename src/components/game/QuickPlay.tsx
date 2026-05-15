@@ -77,13 +77,25 @@ function HintBar() {
 
 function SaveStatusLine() {
   const ui = useGameStore((s) => s.saveStatus?.ui ?? null);
+  const savedGameId = useGameStore((s) => s.savedGameId);
   if (ui === null || ui.kind === "pending") {
     return <span className="opacity-70">Saving…</span>;
   }
   if (ui.kind === "saved") {
     return (
       <span className="text-emerald-700 dark:text-emerald-300">
-        Saved to your account
+        Saved to your account · +{ui.minesAwarded} Mines
+        {savedGameId ? (
+          <>
+            {" · "}
+            <a
+              href={`/games/${savedGameId}/review`}
+              className="underline decoration-dotted hover:decoration-solid"
+            >
+              Review this game
+            </a>
+          </>
+        ) : null}
       </span>
     );
   }

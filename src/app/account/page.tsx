@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signOutAction } from "@/app/auth/actions";
+import { ProTierDialog } from "@/components/billing/ProTierDialog";
+import { coachLimitByTier, formatSubscriptionTier } from "@/lib/billing/tiers";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
 
@@ -28,8 +30,10 @@ type RecentGame = Pick<
   | "result"
   | "time_ms"
   | "hints_used"
+  | "flags_placed"
   | "flags_correct"
   | "mine_count"
+  | "three_bvs"
   | "finished_at"
 >;
 
@@ -89,7 +93,7 @@ export default async function AccountPage() {
     supabase
       .from("games")
       .select(
-        "id,difficulty,result,time_ms,hints_used,flags_correct,mine_count,finished_at",
+        "id,difficulty,result,time_ms,hints_used,flags_placed,flags_correct,mine_count,three_bvs,finished_at",
       )
       .eq("user_id", userId)
       .order("finished_at", { ascending: false })
@@ -101,6 +105,29 @@ export default async function AccountPage() {
   const recentGames = (gamesResponse.data ?? []) as RecentGame[];
 
   const email = claimsData.claims.email ?? profile?.email ?? "Signed-in user";
+  const currentTier = subscription?.tier ?? "free";
+  const avgThreeBvs =
+    recentGames.length === 0
+      ? "0.00"
+      : (
+          recentGames.reduce((sum, game) => sum + game.three_bvs, 0) /
+          recentGames.length
+        ).toFixed(2);
+  const totalFlagsPlaced = recentGames.reduce(
+    (sum, game) => sum + game.flags_placed,
+    0,
+  );
+  const totalFlagsCorrect = recentGames.reduce(
+    (sum, game) => sum + game.flags_correct,
+    0,
+  );
+  const flagAccuracy =
+    totalFlagsPlaced === 0
+      ? "No flags"
+      : `${Math.round((totalFlagsCorrect / totalFlagsPlaced) * 100)}%`;
+  const reviewableGames = recentGames.filter(
+    (game) => game.result === "win" || game.result === "loss",
+  ).length;
   const joinedAt = profile?.created_at
     ? new Intl.DateTimeFormat("en", {
         dateStyle: "medium",
@@ -150,13 +177,23 @@ export default async function AccountPage() {
               Tier
             </p>
             <p className="mt-2 text-lg font-semibold capitalize text-zinc-950 dark:text-zinc-50">
-              {(subscription?.tier ?? "free").replace("_", " ")}
+              {formatSubscriptionTier(currentTier)}
             </p>
             <p className="mt-1 text-sm text-zinc-500">
               {subscription?.granted_via === "fake_purchase"
                 ? "Granted by upgrade"
                 : "Free default"}
             </p>
+            <div className="mt-3">
+              <ProTierDialog
+                currentTier={currentTier}
+                grantedVia={subscription?.granted_via ?? "free_default"}
+                triggerLabel={
+                  currentTier === "free" ? "Upgrade tier" : "Manage tier"
+                }
+                triggerClassName="w-full justify-center"
+              />
+            </div>
           </div>
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
             <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
@@ -170,6 +207,65 @@ export default async function AccountPage() {
             </p>
           </div>
         </section>
+
+        {currentTier === "free" ? (
+          <section className="rounded-lg border border-dashed border-emerald-300 bg-emerald-50/60 p-5 dark:border-emerald-900 dark:bg-emerald-950/20">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-300">
+                  Pro analytics
+                </p>
+                <h2 className="mt-2 text-base font-semibold text-zinc-950 dark:text-zinc-50">
+                  Advanced panels locked
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                  Upgrade to unlock 3BV/s trends, flag accuracy, and post-game review entry points.
+                </p>
+              </div>
+              <ProTierDialog
+                currentTier={currentTier}
+                grantedVia={subscription?.granted_via ?? "free_default"}
+                triggerLabel="Open tiers"
+              />
+            </div>
+          </section>
+        ) : (
+          <section className="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="flex items-baseline justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-300">
+                  Pro analytics
+                </p>
+                <h2 className="mt-2 text-base font-semibold text-zinc-950 dark:text-zinc-50">
+                  Unlocked panels
+                </h2>
+              </div>
+              <span className="text-xs text-zinc-500">
+                {coachLimitByTier[currentTier]} Coach messages/day
+              </span>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+                <p className="text-xs text-zinc-500">Avg 3BV/s</p>
+                <p className="mt-1 font-mono text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+                  {avgThreeBvs}
+                </p>
+              </div>
+              <div className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+                <p className="text-xs text-zinc-500">Flag accuracy</p>
+                <p className="mt-1 font-mono text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+                  {flagAccuracy}
+                </p>
+              </div>
+              <div className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
+                <p className="text-xs text-zinc-500">Review-ready games</p>
+                <p className="mt-1 font-mono text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+                  {reviewableGames}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
 
         {recentGames.length === 0 ? (
           <section className="rounded-lg border border-dashed border-zinc-300 p-5 dark:border-zinc-700">
@@ -203,7 +299,7 @@ export default async function AccountPage() {
               {recentGames.map((game) => (
                 <li
                   key={game.id}
-                  className="grid grid-cols-2 gap-2 py-2 text-sm sm:grid-cols-5"
+                  className="grid grid-cols-2 gap-2 py-2 text-sm sm:grid-cols-6"
                 >
                   <span className="font-medium text-zinc-950 dark:text-zinc-50">
                     {DIFFICULTY_LABEL[game.difficulty]}
@@ -232,6 +328,14 @@ export default async function AccountPage() {
                   </span>
                   <span className="text-zinc-500 dark:text-zinc-400 sm:text-right">
                     {formatFinishedAt(game.finished_at)}
+                  </span>
+                  <span className="sm:text-right">
+                    <Link
+                      href={`/games/${game.id}/review`}
+                      className="font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
+                    >
+                      Review →
+                    </Link>
                   </span>
                 </li>
               ))}

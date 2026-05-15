@@ -5,6 +5,7 @@ import {
   findSafeCell,
   generateBoard,
   initialState,
+  type Action,
   type BoardLayout,
   type GameState,
 } from "@minesweeper/engine";
@@ -28,7 +29,7 @@ export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
 
 export type SaveUiStatus =
   | { kind: "pending" }
-  | { kind: "saved" }
+  | { kind: "saved"; minesAwarded: number }
   | { kind: "unauthenticated" }
   | { kind: "error"; message: string };
 
@@ -45,7 +46,12 @@ type Store = {
   state: GameState;
   hint: { row: number; col: number } | null;
   hintsUsed: number;
+  /** Recorded for replay; only successful state-changing actions get appended. */
+  actionLog: Action[];
   saveStatus: SaveStatus | null;
+  /** ID of the game's row in public.games, populated after save. Lets the
+   *  post-game banner link straight to the review page. */
+  savedGameId: string | null;
   newGame: (difficulty?: Difficulty) => void;
   reveal: (row: number, col: number) => void;
   flag: (row: number, col: number) => void;
@@ -81,13 +87,28 @@ function fresh(
 function uiFromResult(result: SaveGameResult): SaveUiStatus {
   switch (result.status) {
     case "saved":
-      return { kind: "saved" };
+      return { kind: "saved", minesAwarded: result.minesAwarded };
     case "unauthenticated":
       return { kind: "unauthenticated" };
     case "invalid":
     case "error":
       return { kind: "error", message: result.message };
   }
+}
+
+/**
+ * Append an Action to the running log only if `applyAction` produced a change.
+ * The engine returns the same state by reference for no-ops (already revealed,
+ * flag-on-revealed, etc.) — we use that signal to keep the log lean.
+ */
+function appendIfChanged(
+  log: Action[],
+  prev: GameState,
+  next: GameState,
+  action: Action,
+): Action[] {
+  if (prev === next) return log;
+  return [...log, action];
 }
 
 export const useGameStore = create<Store>((set, get) => {
@@ -113,12 +134,16 @@ export const useGameStore = create<Store>((set, get) => {
       layout: next.layout,
       state: next.state,
       hintsUsed: next.hintsUsed,
+      actionLog: next.actionLog,
     });
-    set({ saveStatus: { seed, ui: { kind: "pending" } } });
+    set({ saveStatus: { seed, ui: { kind: "pending" } }, savedGameId: null });
     saveQuickPlayGame(payload)
       .then((result) => {
         if (get().layout.seed !== seed) return;
-        set({ saveStatus: { seed, ui: uiFromResult(result) } });
+        set({
+          saveStatus: { seed, ui: uiFromResult(result) },
+          savedGameId: result.status === "saved" ? result.gameId : null,
+        });
       })
       .catch((err: unknown) => {
         if (get().layout.seed !== seed) return;
@@ -132,7 +157,9 @@ export const useGameStore = create<Store>((set, get) => {
     ...fresh("beginner"),
     hint: null,
     hintsUsed: 0,
+    actionLog: [],
     saveStatus: null,
+    savedGameId: null,
 
     newGame: (d) => {
       const difficulty = d ?? get().difficulty;
@@ -141,70 +168,74 @@ export const useGameStore = create<Store>((set, get) => {
         ...fresh(difficulty),
         hint: null,
         hintsUsed: 0,
+        actionLog: [],
         saveStatus: null,
+        savedGameId: null,
       });
     },
 
     reveal: (row, col) => {
-      const { state, difficulty, layout } = get();
+      const { state, difficulty, layout, actionLog } = get();
+      const t = Date.now();
       if (state.status === "idle") {
         // First-click safety: regenerate the layout with this cell forbidden
         // from being a mine, then apply the reveal in one atomic step. The
         // seed is preserved so the game stays reproducible.
         const fc = fresh(difficulty, { row, col }, layout.seed);
-        const { state: next } = applyAction(fc.state, {
-          kind: "reveal",
-          row,
-          col,
-          t: Date.now(),
+        const action: Action = { kind: "reveal", row, col, t };
+        const { state: next } = applyAction(fc.state, action);
+        set({
+          layout: fc.layout,
+          state: next,
+          hint: null,
+          actionLog: [action],
         });
-        set({ layout: fc.layout, state: next, hint: null });
         maybePersistFinish(state);
         return;
       }
-      const { state: next } = applyAction(state, {
-        kind: "reveal",
-        row,
-        col,
-        t: Date.now(),
+      const action: Action = { kind: "reveal", row, col, t };
+      const { state: next } = applyAction(state, action);
+      set({
+        state: next,
+        hint: null,
+        actionLog: appendIfChanged(actionLog, state, next, action),
       });
-      set({ state: next, hint: null });
       maybePersistFinish(state);
     },
 
     flag: (row, col) => {
-      const prev = get().state;
-      const { state: next } = applyAction(prev, {
-        kind: "flag",
-        row,
-        col,
-        t: Date.now(),
+      const { state: prev, actionLog } = get();
+      const action: Action = { kind: "flag", row, col, t: Date.now() };
+      const { state: next } = applyAction(prev, action);
+      set({
+        state: next,
+        hint: null,
+        actionLog: appendIfChanged(actionLog, prev, next, action),
       });
-      set({ state: next, hint: null });
       maybePersistFinish(prev);
     },
 
     question: (row, col) => {
-      const prev = get().state;
-      const { state: next } = applyAction(prev, {
-        kind: "question",
-        row,
-        col,
-        t: Date.now(),
+      const { state: prev, actionLog } = get();
+      const action: Action = { kind: "question", row, col, t: Date.now() };
+      const { state: next } = applyAction(prev, action);
+      set({
+        state: next,
+        hint: null,
+        actionLog: appendIfChanged(actionLog, prev, next, action),
       });
-      set({ state: next, hint: null });
       maybePersistFinish(prev);
     },
 
     chord: (row, col) => {
-      const prev = get().state;
-      const { state: next } = applyAction(prev, {
-        kind: "chord",
-        row,
-        col,
-        t: Date.now(),
+      const { state: prev, actionLog } = get();
+      const action: Action = { kind: "chord", row, col, t: Date.now() };
+      const { state: next } = applyAction(prev, action);
+      set({
+        state: next,
+        hint: null,
+        actionLog: appendIfChanged(actionLog, prev, next, action),
       });
-      set({ state: next, hint: null });
       maybePersistFinish(prev);
     },
 

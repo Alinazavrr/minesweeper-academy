@@ -1,6 +1,9 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { awardMinesForGame } from "@/lib/db/currency";
+import { base64ToPostgresBytea } from "@/lib/games/replay";
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
 
@@ -24,10 +27,22 @@ const PayloadSchema = z.object({
   daily_date: z.null(),
   arena_match_id: z.null(),
   finished_at: z.string().min(1),
+  // Cap conservatively — Expert replay target is ~1.5KB; b64 expands ~33%.
+  // 16KB leaves headroom for chord-heavy games and edge cases.
+  replay_blob_b64: z
+    .string()
+    .min(1)
+    .max(16 * 1024)
+    .nullable(),
 });
 
 export type SaveGameResult =
-  | { status: "saved"; gameId: string }
+  | {
+      status: "saved";
+      gameId: string;
+      minesAwarded: number;
+      balanceAfter: number;
+    }
   | { status: "unauthenticated" }
   | { status: "invalid"; message: string }
   | { status: "error"; message: string };
@@ -49,9 +64,11 @@ export async function saveQuickPlayGame(
     return { status: "unauthenticated" };
   }
 
+  const { replay_blob_b64, ...rest } = parsed.data;
   const insert: GamesInsert = {
-    ...parsed.data,
+    ...rest,
     user_id: claimsData.claims.sub,
+    replay_blob: base64ToPostgresBytea(replay_blob_b64),
   };
 
   const { data, error } = await supabase
@@ -66,5 +83,14 @@ export async function saveQuickPlayGame(
       message: error?.message ?? "Insert returned no row",
     };
   }
-  return { status: "saved", gameId: data.id };
+
+  const award = await awardMinesForGame(data.id);
+  revalidatePath("/account");
+
+  return {
+    status: "saved",
+    gameId: data.id,
+    minesAwarded: award.awardedMines,
+    balanceAfter: award.balanceAfter,
+  };
 }

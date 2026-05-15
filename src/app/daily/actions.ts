@@ -1,10 +1,13 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { ENGINE_VERSION } from "@minesweeper/engine";
+import { awardMinesForGame } from "@/lib/db/currency";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateTodaysChallenge } from "@/lib/db/daily";
 import { todayUtcDateString } from "@/lib/games/daily";
+import { base64ToPostgresBytea } from "@/lib/games/replay";
 import type { Database } from "@/types/supabase";
 
 const PayloadSchema = z.object({
@@ -18,10 +21,20 @@ const PayloadSchema = z.object({
   three_bv: z.number().int().min(0),
   three_bvs: z.number().min(0),
   finished_at: z.string().min(1),
+  replay_blob_b64: z
+    .string()
+    .min(1)
+    .max(16 * 1024)
+    .nullable(),
 });
 
 export type SubmitDailyResult =
-  | { status: "submitted"; gameId: string }
+  | {
+      status: "submitted";
+      gameId: string;
+      minesAwarded: number;
+      balanceAfter: number;
+    }
   | { status: "already_submitted" }
   | { status: "unauthenticated" }
   | { status: "invalid"; message: string }
@@ -87,6 +100,7 @@ export async function submitDailyResult(
     source_mode: "daily",
     daily_date: today,
     finished_at: parsed.data.finished_at,
+    replay_blob: base64ToPostgresBytea(parsed.data.replay_blob_b64),
   };
   const gameInsResp = await supabase
     .from("games")
@@ -119,5 +133,14 @@ export async function submitDailyResult(
     return { status: "error", message: drInsResp.error.message };
   }
 
-  return { status: "submitted", gameId };
+  const award = await awardMinesForGame(gameId);
+  revalidatePath("/account");
+  revalidatePath("/daily");
+
+  return {
+    status: "submitted",
+    gameId,
+    minesAwarded: award.awardedMines,
+    balanceAfter: award.balanceAfter,
+  };
 }

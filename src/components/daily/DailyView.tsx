@@ -8,6 +8,7 @@ import {
   findSafeCell,
   generateBoard,
   initialState,
+  type Action,
   type BoardLayout,
   type GameState,
 } from "@minesweeper/engine";
@@ -18,6 +19,7 @@ import type {
   DailyLeaderboardEntry,
   MyDailyResult,
 } from "@/lib/db/daily";
+import { tryEncodeReplay } from "@/lib/games/stats";
 
 type Props = {
   challenge: DailyChallenge;
@@ -51,6 +53,8 @@ type EngineState = {
   state: GameState;
   hintsUsed: number;
   hint: { row: number; col: number } | null;
+  /** Recorded for replay; only state-changing actions get appended. */
+  actionLog: Action[];
 };
 
 type EngineAction =
@@ -71,9 +75,20 @@ type EngineAction =
   | { kind: "showHint" }
   | { kind: "clearHint" };
 
+function appendIfChanged(
+  log: Action[],
+  prev: GameState,
+  next: GameState,
+  action: Action,
+): Action[] {
+  if (prev === next) return log;
+  return [...log, action];
+}
+
 function reducer(s: EngineState, action: EngineAction): EngineState {
   switch (action.kind) {
     case "reveal": {
+      const t = Date.now();
       if (s.state.status === "idle") {
         // Same first-click-safety contract as Quick Play: regenerate the
         // layout so the first reveal can't be a mine. This means each user's
@@ -88,53 +103,79 @@ function reducer(s: EngineState, action: EngineAction): EngineState {
           firstClick: { row: action.row, col: action.col },
         });
         const init = initialState(fc);
-        const next = applyAction(init, {
+        const reveal: Action = {
           kind: "reveal",
           row: action.row,
           col: action.col,
-          t: Date.now(),
-        });
+          t,
+        };
+        const next = applyAction(init, reveal);
         return {
           layout: fc,
           state: next.state,
           hintsUsed: 0,
           hint: null,
+          actionLog: [reveal],
         };
       }
-      const next = applyAction(s.state, {
+      const reveal: Action = {
         kind: "reveal",
         row: action.row,
         col: action.col,
-        t: Date.now(),
-      });
-      return { ...s, state: next.state, hint: null };
+        t,
+      };
+      const next = applyAction(s.state, reveal);
+      return {
+        ...s,
+        state: next.state,
+        hint: null,
+        actionLog: appendIfChanged(s.actionLog, s.state, next.state, reveal),
+      };
     }
     case "flag": {
-      const next = applyAction(s.state, {
+      const flag: Action = {
         kind: "flag",
         row: action.row,
         col: action.col,
         t: Date.now(),
-      });
-      return { ...s, state: next.state, hint: null };
+      };
+      const next = applyAction(s.state, flag);
+      return {
+        ...s,
+        state: next.state,
+        hint: null,
+        actionLog: appendIfChanged(s.actionLog, s.state, next.state, flag),
+      };
     }
     case "question": {
-      const next = applyAction(s.state, {
+      const question: Action = {
         kind: "question",
         row: action.row,
         col: action.col,
         t: Date.now(),
-      });
-      return { ...s, state: next.state, hint: null };
+      };
+      const next = applyAction(s.state, question);
+      return {
+        ...s,
+        state: next.state,
+        hint: null,
+        actionLog: appendIfChanged(s.actionLog, s.state, next.state, question),
+      };
     }
     case "chord": {
-      const next = applyAction(s.state, {
+      const chord: Action = {
         kind: "chord",
         row: action.row,
         col: action.col,
         t: Date.now(),
-      });
-      return { ...s, state: next.state, hint: null };
+      };
+      const next = applyAction(s.state, chord);
+      return {
+        ...s,
+        state: next.state,
+        hint: null,
+        actionLog: appendIfChanged(s.actionLog, s.state, next.state, chord),
+      };
     }
     case "showHint": {
       const hint = findSafeCell(s.state);
@@ -162,6 +203,7 @@ function buildInitialEngineState(challenge: DailyChallenge): EngineState {
     state: initialState(layout),
     hintsUsed: 0,
     hint: null,
+    actionLog: [],
   };
 }
 
@@ -240,6 +282,7 @@ function ActiveGame({
       three_bv: engine.layout.threeBV,
       three_bvs,
       finished_at: new Date(state.finishedAt ?? Date.now()).toISOString(),
+      replay_blob_b64: tryEncodeReplay(engine.actionLog),
     })
       .then((result) => setSubmitUi({ kind: "result", result }))
       .catch((err: unknown) => {
@@ -429,7 +472,13 @@ function FinishBanner({
     if (r.status === "submitted") {
       footer = (
         <span className="text-emerald-700 dark:text-emerald-300">
-          Submitted to today&apos;s leaderboard
+          Submitted to today&apos;s leaderboard · +{r.minesAwarded} Mines ·{" "}
+          <a
+            href={`/games/${r.gameId}/review`}
+            className="underline decoration-dotted hover:decoration-solid"
+          >
+            Review your run
+          </a>
         </span>
       );
     } else if (r.status === "already_submitted") {
@@ -497,9 +546,17 @@ function AlreadyPlayed({
         <Stat label="Hints used" value={result.hints_used.toString()} />
         <Stat label="3BV" value={challenge.three_bv.toString()} />
       </dl>
-      <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-        Come back tomorrow for a new challenge.
-      </p>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+        <p className="text-zinc-600 dark:text-zinc-400">
+          Come back tomorrow for a new challenge.
+        </p>
+        <Link
+          href={`/games/${result.game_id}/review`}
+          className="font-medium text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
+        >
+          Review your run →
+        </Link>
+      </div>
     </section>
   );
 }

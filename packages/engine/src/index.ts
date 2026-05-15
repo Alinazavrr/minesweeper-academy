@@ -11,6 +11,7 @@ export { generateBoard, validateBoard } from "./generate";
 export { initialState } from "./state";
 export { applyAction } from "./apply";
 export { findSafeCell, annotateMoves } from "./solver";
+export { serializeReplay, deserializeReplay } from "./replay";
 
 export type {
   BoardConfig,
