@@ -614,7 +614,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      award_mines_for_game: {
+        Args: { target_game_id: string }
+        Returns: {
+          already_awarded: boolean
+          awarded_mines: number
+          balance_after: number
+          game_id: string
+          reason: Database["public"]["Enums"]["mines_transaction_reason"]
+          total_earned: number
+          transaction_id: string
+          user_id: string
+        }[]
+      }
+      fake_purchase_subscription: {
+        Args: { target_tier: Database["public"]["Enums"]["subscription_tier"] }
+        Returns: {
+          granted_at: string
+          granted_via: Database["public"]["Enums"]["subscription_granted_via"]
+          tier: Database["public"]["Enums"]["subscription_tier"]
+          user_id: string
+          valid_until: string
+        }[]
+      }
     }
     Enums: {
       coach_conversation_kind: "post_game_review" | "free_chat"

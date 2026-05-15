@@ -2,16 +2,13 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { coachLimitByTier } from "@/lib/billing/tiers";
 import { todayUtcDateString } from "@/lib/games/daily";
 import type { Database } from "@/types/supabase";
 
 type Tier = Database["public"]["Enums"]["subscription_tier"];
 
-export const DAILY_LIMIT_BY_TIER: Record<Tier, number> = {
-  free: 5,
-  pro_lite: 20,
-  pro: 100,
-};
+export const DAILY_LIMIT_BY_TIER: Record<Tier, number> = coachLimitByTier;
 
 export type CoachMessage = {
   role: "user" | "assistant" | "system";

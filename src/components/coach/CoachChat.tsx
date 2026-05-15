@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ProTierDialog } from "@/components/billing/ProTierDialog";
 import { cn } from "@/lib/cn";
 
 type Message = {
@@ -174,17 +175,24 @@ export function CoachChat({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-3">
-      <header className="flex items-baseline justify-between border-b border-zinc-200 pb-3 dark:border-zinc-800">
+      <header className="flex flex-col gap-3 border-b border-zinc-200 pb-3 dark:border-zinc-800 sm:flex-row sm:items-baseline sm:justify-between">
         <h1 className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
           AI Coach
         </h1>
-        <div className="flex items-center gap-3 text-xs text-zinc-500">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500">
           <span>
             {remaining} / {initialUsage.limit} left today
             <span className="ml-1 uppercase tracking-wider opacity-70">
               · {initialUsage.tier}
             </span>
           </span>
+          {initialUsage.tier !== "pro" ? (
+            <ProTierDialog
+              currentTier={initialUsage.tier}
+              triggerLabel="Upgrade"
+              triggerClassName="px-2 py-1 text-xs"
+            />
+          ) : null}
           <button
             type="button"
             onClick={newConversation}
