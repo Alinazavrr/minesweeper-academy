@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ENGINE_VERSION } from "@minesweeper/engine";
 
 export default function Home() {
@@ -14,6 +15,14 @@ export default function Home() {
           A training and competitive platform for Minesweeper players — Chess.com
           for logic lovers.
         </p>
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <Link
+            href="/play"
+            className="rounded-md bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500"
+          >
+            Quick play →
+          </Link>
+        </div>
         <p className="text-sm text-zinc-500">
           The product is being built. Check back as features ship.
         </p>
